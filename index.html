@@ -406,13 +406,15 @@
                 0 8px 15px rgba(16, 185, 129, 0.3),
                 inset 0 1px 0 rgba(255, 255, 255, 0.2),
                 0 0 20px rgba(16, 185, 129, 0.5);
+            cursor: not-allowed; /* Fix: Disable cursor when running */
         }
 
         .power-button.on:hover {
+            transform: none; /* Fix: No hover effect when running */
             box-shadow: 
-                0 12px 25px rgba(16, 185, 129, 0.4),
+                0 8px 15px rgba(16, 185, 129, 0.3),
                 inset 0 1px 0 rgba(255, 255, 255, 0.2),
-                0 0 25px rgba(16, 185, 129, 0.6);
+                0 0 20px rgba(16, 185, 129, 0.5);
         }
 
         .power-button.off {
@@ -633,7 +635,7 @@
                 <div class="flex items-center justify-between">
                     <div class="flex items-center space-x-2">
                         <div class="crypto-icon">
-                            <img src="https://i.ibb.co/qYBkPDH/Picsart-25-04-01-16-25-47-054.png" alt="BossX Logo" />
+                            <img src="https://i.ibb.co/qYBkPDH3/Picsart-25-04-01-16-25-47-054.png" alt="BossX Logo" onerror="this.style.display='none'; this.parentNode.innerHTML='<div style=\'background: linear-gradient(145deg, #f59e0b, #d97706); color: white; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 0.75rem;\'>BX</div>'" />
                         </div>
                         <div id="logo-text">
                             <h1 class="text-lg font-bold text-amber-400">BossX</h1>
@@ -738,7 +740,7 @@
                         <!-- User Profile -->
                         <div class="flex items-center space-x-2 px-2 py-1 bg-gray-800/50 rounded-lg border border-gray-700 hover:border-amber-500/50 transition-colors cursor-pointer">
                             <div class="profile-picture">
-                                <img src="https://i.ibb.co/gbVsGLy/FB-IMG-1617237754232.jpg" alt="Fery Muliawan" />
+                                <img src="https://i.ibb.co/gbVsGLy0/FB-IMG-1617237754232.jpg" alt="Fery Muliawan" onerror="this.style.display='none'; this.parentNode.innerHTML='<div style=\'background: linear-gradient(145deg, #3b82f6, #2563eb); color: white; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 0.75rem; border-radius: 50%;\'>FM</div>'" />
                             </div>
                             <div class="text-sm">
                                 <p class="text-white font-medium">Fery Muliawan</p>
@@ -832,6 +834,9 @@
                                         <i id="power-icon" data-lucide="power" class="power-icon"></i>
                                     </button>
                                 </div>
+                                <p id="power-status" class="text-xs text-gray-500" style="display: none;">
+                                    Masternode sedang running - Auto stop jam 06:00
+                                </p>
                             </div>
                         </div>
 
@@ -1117,10 +1122,17 @@
                 return;
             }
             
+            // Fix: Prevent manual OFF when running (only allow auto OFF at 6 AM)
+            if (isValidationRunning) {
+                showSuccessMessage('Masternode sedang running! Hanya akan berhenti otomatis pada jam 06:00.');
+                return;
+            }
+            
             const powerBtn = document.getElementById('power-btn');
             const powerIcon = document.getElementById('power-icon');
             const statusText = document.getElementById('validation-status');
             const countdownDisplay = document.getElementById('countdown-display');
+            const powerStatus = document.getElementById('power-status');
             
             isValidationRunning = !isValidationRunning;
             
@@ -1130,23 +1142,40 @@
                 powerBtn.classList.add('on');
                 statusText.textContent = 'Stop validasi setiap jam 06.00';
                 countdownDisplay.style.display = 'block';
+                powerStatus.style.display = 'block';
+                powerStatus.style.color = '#10b981';
                 startCountdown();
                 startValidationRunning();
                 startAutoClaimCountdown(); // Start auto claim countdown when power ON
                 showSuccessMessage('Validasi dimulai! Earning BossX per detik...');
-            } else {
-                // Turn OFF
-                powerBtn.classList.remove('on');
-                powerBtn.classList.add('off');
-                statusText.textContent = 'Belum berjalan';
-                countdownDisplay.style.display = 'none';
-                if (countdownInterval) {
-                    clearInterval(countdownInterval);
-                }
-                stopValidationRunning();
-                stopAutoClaimCountdown(); // Stop auto claim countdown when power OFF
-                showSuccessMessage('Validasi dihentikan.');
             }
+            
+            // Re-initialize Lucide icons
+            lucide.createIcons();
+        }
+
+        // Function to force stop validation (only for 6 AM auto stop)
+        function forceStopValidation() {
+            if (!isValidationRunning) return;
+            
+            const powerBtn = document.getElementById('power-btn');
+            const statusText = document.getElementById('validation-status');
+            const countdownDisplay = document.getElementById('countdown-display');
+            const powerStatus = document.getElementById('power-status');
+            
+            isValidationRunning = false;
+            
+            // Turn OFF
+            powerBtn.classList.remove('on');
+            powerBtn.classList.add('off');
+            statusText.textContent = 'Belum berjalan';
+            countdownDisplay.style.display = 'none';
+            powerStatus.style.display = 'none';
+            if (countdownInterval) {
+                clearInterval(countdownInterval);
+            }
+            stopValidationRunning();
+            stopAutoClaimCountdown();
             
             // Re-initialize Lucide icons
             lucide.createIcons();
@@ -1184,8 +1213,8 @@
             const now = new Date();
             if (now.getHours() === 6 && now.getMinutes() === 0 && now.getSeconds() === 0) {
                 if (isValidationRunning) {
-                    // Auto stop at 6 AM
-                    togglePower();
+                    // Auto stop at 6 AM using force stop function
+                    forceStopValidation();
                     showSuccessMessage('Validasi dihentikan otomatis pada jam 06:00. Silakan aktifkan kembali untuk melanjutkan.');
                 }
             }
